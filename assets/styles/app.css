@@ -83,6 +83,13 @@ body {
     position: relative;
     min-width: 100%;
     transition: right 500ms ease-in-out;
+    background-color: #333333;
+}
+
+.slide--fullheight img {
+    width: auto;
+    height: 100%;
+    margin: 0 auto;
 }
 
 .content {
