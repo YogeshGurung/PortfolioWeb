@@ -44,19 +44,19 @@ $(function () {
         $(img).parent().css({ "background-image": src });
     });
 
-    // slides.hover(e => pause = true, e => pause = false);
+    slides.hover(e => pause = true, e => pause = false);
 
     next.click(function () {
         waiting = true;
         animate(true);
-        // run();
+        run();
     });
 
     prev.click(function () {
         waiting = true;
         animate(false);
-        // run();
+        run();
     });
 
-    // run();
+    run();
 });
