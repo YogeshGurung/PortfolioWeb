@@ -1,62 +1,128 @@
-// slider code
-$(function () {
-    const slider = $(".slider");
-    const slides = $(".slide");
-    const next = $(".nav__next");
-    const prev = $(".nav__prev");
-    let currentSlide = 0;
-    let waiting = true; // seconds;
-    let intervalID;
-    let timeoutID;
-    let timeoutID2;
+"use strict";
 
-    function animate(forward) {
-        let nextSlide = currentSlide + 1 < slides.length ? currentSlide + 1 : 0;
-        let prevSlide = currentSlide - 1 < 0 ? slides.length - 1 : currentSlide -1;
+const Timer = () => {
+    let resetFns = [];
 
-        let right  = ((forward ? nextSlide : prevSlide) * 100) + "%";
-        currentSlide = forward ? nextSlide : prevSlide;
+    function timeout(callback, time) {
+        const idx = setTimeout(callback, time);
+        const reset = () => clearTimeout(idx);
 
-        slides.css("right", right);
-    };
+        resetFns.push(reset);
 
-    function run() {
-        clearInterval(intervalID);
-        clearTimeout(timeoutID);
-        clearTimeout(timeoutID2);
-
-
-        intervalID = setInterval(() => {
-            if(waiting) return;
-    
-            waiting = true;
-    
-            timeoutID2 = setTimeout(() => waiting = false, 3000);
-    
-            animate(true);
-        }, 500);
-
-        timeoutID = setTimeout(() => waiting = false, 3000);
+        return () => {
+            resetFns = resetFns.filter(fn => fn !== reset);
+            reset();
+        };
     }
 
-    $(".slide--fullheight img").each((id, img) => {
-        const src = img.src;
-        $(img).parent().css({ "background-image": src });
+    function interval(callback, time) {
+        const idx = setInterval(callback, time);
+        const reset = () => clearInterval(idx);
+
+        resetFns.push(reset);
+
+        return () => {
+            resetFns = resetFns.filter(fn => fn !== reset);
+            reset();
+        };
+    }
+
+    function clearAll() {
+        resetFns.forEach(fn => fn());
+        resetFns = [];
+    }
+
+    return {
+        timeout,
+        interval,
+        clearAll,
+    };
+};
+
+class Carousel {
+    static DIRECTION = Object.freeze({
+        FORWARD: 1,
+        BACKWARD: -1,
     });
 
-    slides.hover(e => pause = true, e => pause = false);
+    constructor({ el, next, prev, wait, duration}) {
+        this.$el = el;
+        this.timer = Timer();
+        this.waiting = true;
 
-    next.click(function () {
-        waiting = true;
-        animate(true);
-        run();
-    });
 
-    prev.click(function () {
-        waiting = true;
-        animate(false);
-        run();
-    });
+        this.index = {
+            current: 0,
+            get prev() {
+                return this.current - 1 < 0 ? el.children().length - 1 : this.current - 1;
+            },
+            get next() {
+                return this.current + 1 < el.children().length ? this.current + 1 : 0;
+            }
+        }
 
-    run();
+        this.config = {
+            currentDirection: Carousel.DIRECTION.FORWARD,
+            animationWait: wait ? wait : 5E3,
+        };
+
+
+        next.click(() => this.forward());
+        prev.click(() => this.backward());
+
+        $(document).keyup(({ originalEvent: { key }}) => {
+            switch (key) {
+                case "ArrowLeft":
+                    this.backward();
+                    break;
+                case "ArrowRight":
+                    this.forward();
+                    break;
+                default:
+                    break;
+            }
+        });
+    }
+
+    forward() {
+        this.timer.clearAll();
+        this.waiting = false;
+        this.config.currentDirection = Carousel.DIRECTION.FORWARD;
+
+        this.animate(this.run.bind(this));
+
+        return this;
+    }
+
+    backward() {
+        this.timer.clearAll();
+        this.waiting = false;
+        this.config.currentDirection = Carousel.DIRECTION.BACKWARD;
+
+        this.animate(this.run.bind(this));
+
+        return this;
+    }
+
+    animate(callback) {
+        this.index.current = this.config.currentDirection === Carousel.DIRECTION.FORWARD
+            ? this.index.next
+            : this.index.prev;
+
+        this.config.currentDirection = Carousel.DIRECTION.FORWARD;
+
+        this.$el.children().css({ right: `${this.index.current * 100}%`});
+
+        if(typeof callback === "function") callback();
+    }
+
+    run() {
+        this.timer.interval(this.animate.bind(this), this.config.animationWait);
+
+        return this;
+    }
+}
+
+$(".more svg").click(() => {
+    $(".content").toggleClass("content--open");
 });
